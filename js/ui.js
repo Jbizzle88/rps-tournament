@@ -57,10 +57,23 @@ function drawBracket(){ui();const P=VIEW.portrait,fs=P?7:8;
 function hpInfo(b,x,y,iw,name,lost,sub,flash){box(x,y,iw,40);txt(name,x+10,y+7,'#222',10);txt(sub,x+iw-10,y+8,'#666',8,'right');txt('HP',x+12,y+24,'#d08020',8);
  R(x+32,y+24,iw-42,8,'#444');const nd=S.br.need,pw=(iw-46)/nd;
  for(let i=0;i<nd;i++){const red=i>=nd-lost,fl=flash&&i===nd-lost&&Math.floor(b.t*16)%2;R(x+34+i*pw,y+26,pw-2,4,fl?'#fff':red?'#e03030':'#30c050');}}
-function drawReveal(b,hx,hy,ox,oy,s,tx,ty){
- if(b.phase==='result'){drawHand(b.pm,hx,hy,s,false);drawHand(b.om,ox,oy,s,true);const r=outcome(b.pm,b.om);
-  txt(r===0?'TIE':r>0?'WIN!':'LOSE',tx,ty,r===0?'#888':r>0?'#2a2':'#c22',14,'center');}
- else if(b.phase==='reveal'){const sh=Math.abs(Math.sin(b.t*9))*12;drawHand('rock',hx,hy-sh,s,false);drawHand('rock',ox,oy-sh,s,true);}}
+// Reveal: each fighter's hand in a tinted bubble beside that fighter, pointing at the other
+function handBubble(b,x,y,who,col,move,flip,state){const cap=move?move.toUpperCase():'...';
+ const shake=state==='wait'?Math.abs(Math.sin(b.t*9))*10:0,dx=state==='lose'&&b.t<.7?Math.sin(b.t*50)*3:0;
+ if(state==='win'){const g=Math.floor(b.t*6)%2?'#ffe040':'#fff6a0';R(x-4,y-4,92,104,g);}
+ R(x,y,84,96,col);R(x+2,y+14,80,80,state==='lose'?'#cfcfcf':'#fff');
+ txt(who+': '+cap,x+42,y+3,'#fff',8,'center');
+ // tail toward own fighter
+ if(flip){R(x+84,y+40,4,10,col);R(x+88,y+43,3,4,col);}else{R(x-4,y+40,4,10,col);R(x-7,y+43,3,4,col);}
+ if(state==='lose')ctx.globalAlpha=.45;
+ drawHand(move||'rock',x+10+dx,y+22-shake,4,flip);ctx.globalAlpha=1;
+ if(state&&state!=='wait'){const t=state==='win'?'WIN!':state==='lose'?'LOSE':'TIE';txt(t,x+80,y+16,state==='win'?'#1a9a2a':state==='lose'?'#c22':'#888',10,'right');}}
+function drawReveal(b,px,py,ox,oy){
+ if(b.phase!=='reveal'&&b.phase!=='result')return;
+ const res=b.phase==='result'?outcome(b.pm,b.om):null;
+ const st=v=>res===null?'wait':res===0?'tie':(v===res?'win':'lose');
+ handBubble(b,ox,oy,b.opp.name.toUpperCase(),'#b03040',res===null?null:b.om,true,st(-1));
+ handBubble(b,px,py,'YOU','#3060c0',res===null?null:b.pm,false,st(1));}
 function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;
  const shO=b.flash==='o'?Math.sin(b.t*60)*3:0,shP=b.flash==='p'?Math.sin(b.t*60)*3:0;
  b.intro=Math.min(1,(b.intro||0)+1/30);const sl=b.intro,fresh=b.phase==='result'&&b.t<.7;
@@ -70,7 +83,7 @@ function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;
   R(280,100,170,30,bg.plat);R(290,104,150,22,bg.plat2);R(30,200,180,34,bg.plat);R(40,204,160,26,bg.plat2);
   drawGuy(330+shO+(1-sl)*200,34,2,b.opp.look,0,5);drawGuy(60+shP-(1-sl)*200,128,0,PLAYER_LOOK,0,6);
   hpInfo(b,20,16,170,b.opp.name,b.pw,sub,fresh&&b.flash==='o');hpInfo(b,290,170,170,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
-  drawReveal(b,200,120,270,50,4,250,100);
+  drawReveal(b,172,118,232,26);
   box(0,H-64,W,64);
   if(b.phase==='menu'){wrap(b.text,30).forEach((l,i)=>txt(l,12,H-52+i*13,'#222',10));box(250,H-64,230,64);
    MOVES.forEach((m,i)=>{const x=262+i*72;if(i===b.sel)R(x-4,H-56,68,48,'#ffe080');hit(x-4,H-56,68,48,i);
@@ -87,7 +100,7 @@ function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;
  R(6,TB-34,160,28,bg.plat);R(14,TB-30,144,20,bg.plat2);
  drawGuy(14+shP-(1-sl)*200,TB-126,0,PLAYER_LOOK,0,7);
  const piw=Math.min(170,W-150);hpInfo(b,W-piw-6,TB-90,piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
- const my=(oy+106+TB-126)/2;drawReveal(b,W/2+4,my-32,W/2-68,my-32,4,W/2,my+34);
+ const my=(oy+106+TB-126)/2;drawReveal(b,134,TB-206,W-219,oy+4);
  txt(hist,W-6,oy+112,bg.ink,7,'right');
  box(0,TB,W,64);txtW(b.text,12,TB+10,'#222',10,'left',W-24,13);
  if(b.phase!=='menu'&&b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-20,TB+50,6,4,'#d03030');
