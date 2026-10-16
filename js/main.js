@@ -27,12 +27,13 @@ function onKey(k){
  if(S.mode==='board'){if(isAct(k)||k==='Escape'||k==='l'||k==='L')newGame(1);return;}
  if(S.mode==='name'){nameKey(k);return;}
  if(S.mode==='title'){
-  if(k==='l'||k==='L'){S.mode='board';S.lb=loadLB();S.hi=-1;return;}
+  if(k==='l'||k==='L'){openBoard(null);return;}
   if(isAct(k)){S.mode='world';Music.setLevel(S.level);say(['Welcome to the Grand RPS Tournament!','16 fighters. Single elimination. Best of 3.','Find your opponent (marked with !) and talk to them.','Press B anytime to view the bracket.']);}return;}
  if(S.mode==='champ'){if(isAct(k)){const L=S.level+1;newGame(L,S.map.id);S.mode='world';Music.setLevel(L);
    say(['LEVEL '+L+': welcome to '+S.map.name+'! A fresh bracket of 16.','Word is the competition got smarter...'+(bestOf(L)===5?' Matches are now Best of 5!':''),'Find your opponent (!) and talk to them.']);}return;}
  if(S.mode==='over'){if(isAct(k)||k==='r'||k==='R'){const sc={level:S.level,round:S.br.round-1};const lb=loadLB();
-   if(qualifies(lb,sc)){S.mode='name';S.nm='';S.kr=0;S.kc=0;S.score=sc;}else{S.mode='board';S.lb=lb;S.hi=-1;}}return;}
+   const ref=S.glb||lb; // qualify against global top 10 if loaded, else local cache
+   if(qualifies(ref,sc)){S.mode='name';S.nm='';S.kr=0;S.kc=0;S.score=sc;}else openBoard(null);}return;}
  if(S.mode==='battle'){battleKey(k);return;}
  if(S.msg){if(isAct(k)){S.msg.i++;if(S.msg.i>=S.msg.lines.length){const t=S.msg.then;S.msg=null;t&&t();}}return;}
  if(k==='b'||k==='B'){S.showB=!S.showB;return;}
@@ -49,8 +50,12 @@ function nameKey(k){
  if(k==='ArrowLeft'||k==='ArrowRight'){const n=KB_ROWS[S.kr].length;S.kc=(S.kc+(k==='ArrowLeft'?n-1:1))%n;Music.sfx('blip');return;}
  if(k===' '){kbPress(KB_ROWS[S.kr][S.kc]);return;}
  if(k==='Enter'&&S.nm.length>=1){const e={name:cleanName(S.nm),level:S.score.level,round:S.score.round,t:Date.now()};
-  const lb=insertScore(loadLB(),e);saveLB(lb);S.lb=lb;S.hi=lb.indexOf(e);S.mode='board';}
+  saveLB(insertScore(loadLB(),e));const mine={name:e.name,level:e.level,round:e.round};
+  postScore(e).then(()=>openBoard(mine),()=>{openBoard(mine);});S.mode='board';S.lb=insertScore(S.glb||loadLB(),e);S.mine=mine;S.lbState='saving...';}
 }
+function openBoard(mine){S.mode='board';S.mine=mine;S.lb=S.lb&&S.mine?S.lb:loadLB();S.lbState='loading...';const tok=S.lbTok=(S.lbTok||0)+1;
+ fetchGlobalLB().then(a=>{if(S.lbTok!==tok)return;S.lb=a;S.lbState='GLOBAL';if(mine&&!a.some(e=>e.name===mine.name&&e.level===mine.level&&e.round===mine.round))S.lb=insertScore(a,mine);},
+  ()=>{if(S.lbTok!==tok)return;S.lb=loadLB();S.lbState='offline - local scores';});}
 function talk(n){
  n.dir=(S.dir+2)%4;const opp=playerOpponent(S.br);
  if(S.elim.has(n))return say([n.name+': I got knocked out... good luck out there.']);
@@ -80,7 +85,7 @@ function resolve(){const b=S.battle;b.ph.push(b.pm);b.oh.push(b.om);const r=outc
  else if(b.ow===S.br.need){b.done=true;b.text+=' Out of HP - you lost...';Music.sfx('lose');}
  else if(r>0)Music.sfx('rwin');else if(r<0)Music.sfx('rlose');
  b.phase='result';b.t=0;}
-function finishBattle(won){const opp=S.battle.opp;S.mode='world';S.battle=null;
+function finishBattle(won){const opp=S.battle.opp;S.mode='world';S.battle=null;if(!won){S.glb=null;fetchGlobalLB().then(a=>{S.glb=a;},()=>{});}
  const prev=S.br.rounds[S.br.round],next=advance(S.br,won);
  prev.forEach(p=>{if(!p.player&&!next.includes(p))S.elim.add(p);});
  if(!won){S.mode='over';S.lostTo=opp;return;}

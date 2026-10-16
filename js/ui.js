@@ -125,7 +125,7 @@ function drawEnd(champ){ui();const P=VIEW.portrait;
 }
 function drawName(){ui();const P=VIEW.portrait;R(0,0,W,H,'#101830');
  txt('NEW HIGH SCORE!',W/2,H*.07,'#ffd040',P?17:20,'center');
- txt('Level '+S.score.level+' - '+ROUND_NAMES[Math.max(0,S.score.round)],W/2,H*.07+26,'#fff',11,'center');
+ txt('Level '+S.score.level+' - '+ROUND_LABELS[clampRound(S.score.round)],W/2,H*.07+26,'#fff',11,'center');
  txt('ENTER YOUR NAME',W/2,H*.07+48,'#9cf',12,'center');
  const sy=H*.07+76;for(let i=0;i<5;i++){const x=W/2-103+i*42;R(x,sy+34,34,4,'#fff');const c=S.nm[i]||(i===S.nm.length&&Math.floor(S.t*3)%2?'_':'');txt(c,x+17,sy+4,'#fff',26,'center');}
  if(IS_TOUCH)return; // touch devices use the on-screen QWERTY grid
@@ -138,8 +138,10 @@ function drawName(){ui();const P=VIEW.portrait;R(0,0,W,H,'#101830');
 function drawBoard(){ui();const P=VIEW.portrait,fs=P?10:11,rh=P?24:19;R(0,0,W,H,'#0c1024');txt('TOP 10 LEADERBOARD',W/2,IS_TOUCH?30:14,'#ffd040',P?14:16,'center');
  const top=IS_TOUCH?60:44,c=[W*.07,W*.19,W*.48,W*.62];
  txt('RANK',c[0],top,'#9cf',9);txt('NAME',c[1],top,'#9cf',9);txt('LEVEL',c[2],top,'#9cf',9);txt('ROUND',c[3],top,'#9cf',9);
- const lb=S.lb||[];if(!lb.length)txt('No scores yet - go play!',W/2,top+60,'#888',11,'center');
- lb.forEach((e,i)=>{const y=top+16+i*rh,col=i===S.hi?(Math.floor(S.t*4)%2?'#ff0':'#fa0'):'#fff';
-  txt(String(i+1).padStart(2,' ')+'.',c[0],y,col,fs);txt(e.name,c[1],y,col,fs);txt(String(e.level),c[2]+8,y,col,fs);txt(ROUND_NAMES[Math.max(0,Math.min(3,e.round))],c[3],y,col,fs-1);});
+ txt(S.lbState||'',W/2,top-14,S.lbState==='GLOBAL'?'#6f6':'#aaa',8,'center');
+ const lb=S.lb||[];if(!lb.length)txt(S.lbState==='loading...'?'Loading...':'No scores yet - go play!',W/2,top+60,'#888',11,'center');
+ const m=S.mine,hi=m?lb.findIndex(e=>e.name===m.name&&e.level===m.level&&e.round===m.round):-1;
+ lb.forEach((e,i)=>{const y=top+16+i*rh,col=i===hi?(Math.floor(S.t*4)%2?'#ff0':'#fa0'):'#fff';
+  txt(String(i+1).padStart(2,' ')+'.',c[0],y,col,fs);txt(e.name,c[1],y,col,fs);txt(String(e.level),c[2]+8,y,col,fs);txt(ROUND_LABELS[clampRound(e.round)],c[3],y,col,fs-1);});
  txt((IS_TOUCH?'Tap':'Press SPACE')+' to return to title',W/2,H-18,'#aaa',9,'center');}
 function drawToast(dt){if(S.muteT>0){S.muteT-=dt;ui();const y=IS_TOUCH?26:H-uiB()-80;R(W-70,y,64,14,'rgba(0,0,0,.7)');txt(Music.muted?'MUSIC OFF':'MUSIC ON',W-38,y+3,'#fff',8,'center');}}
