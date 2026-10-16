@@ -5,6 +5,7 @@ const uiB=()=>ctlBottom()/FR.s, uiS=()=>ctlSide()/FR.s;
 function drawTitle(){ui();const P=VIEW.portrait;
  R(0,0,W,H,'#203060');for(let i=0;i<50;i++)R((i*97+S.t*20)%W,(i*53)%H,2,2,'#fff6');
  txt('ROCK  PAPER  SCISSORS',W/2,H*.11,'#ffd040',P?15:20,'center');txt('GRAND TOURNAMENT',W/2,H*.11+(P?22:28),'#fff',P?13:16,'center');
+ txt('v'+(window.APP_VERSION||'dev'),W-4,H-12,'#6a7aa0',7,'right');
  txt('Level '+S.level,W/2,H*.11+(P?42:54),'#9cf',9,'center');
  MOVES.forEach((m,i)=>drawHand(m,W/2-84+i*60,H*(P?.27:.34)+Math.sin(S.t*3+i)*5,3,false));
  const fl=NPCS.slice(0,7);

@@ -9,6 +9,7 @@ function newGame(level=1,prevMap=null){
  S={mode:'title',level,map,br,npcs,px:map.start[0],py:map.start[1],fromX:map.start[0],fromY:map.start[1],dir:0,moving:0,msg:null,showB:false,battle:null,t:S?S.t:0,elim:new Set(),muteT:0};
 }
 newGame();
+setTimeout(syncPending,1500);
 function solid(x,y){return isSolidTile(S.map,x,y)||S.npcs.some(n=>n.x===x&&n.y===y);}
 const DX=[0,1,0,-1],DY=[-1,0,1,0];
 const keys={};
@@ -49,9 +50,9 @@ function nameKey(k){
  if(k==='ArrowUp'||k==='ArrowDown'){S.kr=(S.kr+(k==='ArrowUp'?2:1))%3;S.kc=Math.min(S.kc,KB_ROWS[S.kr].length-1);Music.sfx('blip');return;}
  if(k==='ArrowLeft'||k==='ArrowRight'){const n=KB_ROWS[S.kr].length;S.kc=(S.kc+(k==='ArrowLeft'?n-1:1))%n;Music.sfx('blip');return;}
  if(k===' '){kbPress(KB_ROWS[S.kr][S.kc]);return;}
- if(k==='Enter'&&S.nm.length>=1){const e={name:cleanName(S.nm),level:S.score.level,round:S.score.round,t:Date.now()};
+ if(k==='Enter'&&S.nm.length>=1){const e={name:cleanName(S.nm),level:S.score.level,round:S.score.round,posted:false};
   saveLB(insertScore(loadLB(),e));const mine={name:e.name,level:e.level,round:e.round};
-  postScore(e).then(()=>openBoard(mine),()=>{openBoard(mine);});S.mode='board';S.lb=insertScore(S.glb||loadLB(),e);S.mine=mine;S.lbState='saving...';}
+  postScore(e).then(()=>{markPosted(e);openBoard(mine);},()=>{openBoard(mine);});S.mode='board';S.lb=insertScore(S.glb||loadLB(),e);S.mine=mine;S.lbState='saving...';}
 }
 function openBoard(mine){S.mode='board';S.mine=mine;S.lb=S.lb&&S.mine?S.lb:loadLB();S.lbState='loading...';const tok=S.lbTok=(S.lbTok||0)+1;
  fetchGlobalLB().then(a=>{if(S.lbTok!==tok)return;S.lb=a;S.lbState='GLOBAL';if(mine&&!a.some(e=>e.name===mine.name&&e.level===mine.level&&e.round===mine.round))S.lb=insertScore(a,mine);},
