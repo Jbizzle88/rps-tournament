@@ -119,4 +119,4 @@ function frame(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;Music.set(mu
  if(S.lbOpen)drawBoard(true);
  drawToast(dt);requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
-resize();addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,150));if(window.visualViewport)visualViewport.addEventListener('resize',resize);
+resize();addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,150));if(window.visualViewport){visualViewport.addEventListener('resize',resize);visualViewport.addEventListener('scroll',resize);}// Re-fit after Safari chrome settles (URL bar show/hide often lags the first paint)addEventListener('focus',()=>setTimeout(resize,50));addEventListener('pageshow',()=>setTimeout(resize,50));if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>resize()).catch(()=>{});

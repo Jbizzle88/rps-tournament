@@ -20,7 +20,10 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();if(S.lbOpen){closeLB();
  const dx=(e.clientX-r.left)*VIEW.bw/r.width,dy=(e.clientY-r.top)*VIEW.bh/r.height;
  const h=HITS.find(([x,y,w,hh])=>dx>=x&&dx<x+w&&dy>=y&&dy<y+hh);
  if(S.mode==='battle'&&S.battle){const b=S.battle;
-  if(b.phase==='menu'){if(h&&typeof h[4]==='number')press(String(h[4]+1));return;}
+  if(b.phase==='menu'){
+   if(h&&typeof h[4]==='number'){press(String(h[4]+1));return;}
+   // Fallback: any tap (dialog, fighter, empty space) maps to left/mid/right third → never stuck if buttons clipped
+   press(String(Math.min(2,Math.max(0,Math.floor(dx/(VIEW.bw/3))))+1));return;}
   if(b.phase!=='reveal')press(' ');return;}
  if(S.mode==='name'){if(h)kbPress(h[4]);return;}
  if(S.mode==='world'&&!S.msg&&!S.showB)return; // overworld: use A button / keys

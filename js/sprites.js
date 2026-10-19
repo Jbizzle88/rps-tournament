@@ -3,10 +3,31 @@
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
 let W=480,H=320;const T=16;
 // ---- adaptive view: canvas backing store = device pixels; integer scales keep pixels crisp ----
-const VIEW={bw:480,bh:320,dpr:1,portrait:false};
+const VIEW={bw:480,bh:320,dpr:1,portrait:false,gutter:0};
+const IS_IOS_BROWSER=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 let FR={s:1,ox:0,oy:0};   // current frame transform (device px), used to map hit rects
 let HITS=[];               // tappable rects in device px: [x,y,w,h,value]
-function resize(){const wr=document.getElementById('wrap');const cw=Math.max(1,wr.clientWidth),ch=Math.max(1,wr.clientHeight),dpr=Math.min(window.devicePixelRatio||1,3);
+// Size the game to the VISIBLE area. iOS Safari's bottom URL bar is NOT a safe-area inset, so
+// layout viewport (100vh / fixed inset:0) is taller than what the user can see; drawing move
+// buttons at the bottom of that taller canvas puts them under the toolbar. visualViewport tracks
+// the real visible CSS pixels (and offsetTop when the page is scrolled under chrome).
+function resize(){const wr=document.getElementById('wrap'),vv=window.visualViewport;
+ let cw,ch,top=0,left=0;
+ if(vv){cw=Math.max(1,Math.round(vv.width));ch=Math.max(1,Math.round(vv.height));top=Math.round(vv.offsetTop);left=Math.round(vv.offsetLeft);}
+ else{cw=Math.max(1,wr.clientWidth);ch=Math.max(1,wr.clientHeight);}
+ // Never exceed the layout viewport (defensive on odd WebViews)
+ if(window.innerWidth)cw=Math.min(cw,window.innerWidth);
+ if(window.innerHeight)ch=Math.min(ch,window.innerHeight);
+ // iOS browsers (Safari 26 floating bar, Chrome/Firefox iOS) can report a viewport that still includes the
+ // area UNDER the bottom toolbar. If the reported height is ~ the whole screen, the chrome is clearly not
+ // excluded, so keep a bottom gutter free of anything tappable. Not applied in standalone/app (Capacitor) mode.
+ const tall=ch>cw*1.05,standalone=navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||!!window.Capacitor;
+ const chrome=(screen.height||ch)-ch;VIEW.gutter=(IS_IOS_BROWSER&&tall&&!standalone)?Math.max(0,Math.min(100,150-chrome)):0;
+ ch=Math.max(1,ch-VIEW.gutter);
+ wr.style.top=top+'px';wr.style.left=left+'px';wr.style.width=cw+'px';wr.style.height=ch+'px';
+ wr.style.right='auto';wr.style.bottom='auto';
+ document.documentElement.style.setProperty('--gb',Math.max(0,(window.innerHeight||0)-(top+ch))+'px'); // keep fixed overlays (name keyboard) above the gutter
+ const dpr=Math.min(window.devicePixelRatio||1,3);
  VIEW.dpr=dpr;VIEW.bw=Math.round(cw*dpr);VIEW.bh=Math.round(ch*dpr);cv.width=VIEW.bw;cv.height=VIEW.bh;cv.style.width=cw+'px';cv.style.height=ch+'px';
  VIEW.portrait=ch>cw*1.05;ctx.imageSmoothingEnabled=false;}
 // on-screen touch controls footprint (device px)

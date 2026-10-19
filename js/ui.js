@@ -91,26 +91,36 @@ function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;
     drawHand(m,x+14,H-56,2.5,false);txt((IS_TOUCH?'':(i+1)+' ')+m[0].toUpperCase()+m.slice(1),x+30,H-18,'#222',9,'center');});}
   else{wrap(b.text,52).forEach((l,i)=>txt(l,14,H-52+i*14,'#222',11));if(b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-22,H-16,6,4,'#d03030');}
   txt(hist,W-6,4,bg.ink,7,'right');return;}
- // ---- portrait battle: stacked ----
- ui();R(0,0,W,H,bg.sky);const btnH=Math.min(120,Math.max(90,H*.18)),TB=H-btnH-72;
+ // ---- portrait battle: fighters above, integrated bottom panel (prompt + 3 big move buttons) ----
+ // Panel is a fraction of the VISIBLE H (canvas is already sized to visualViewport), so buttons
+ // can never sit under the iOS Safari toolbar the way a fixed "draw at canvas bottom of 100vh" layout did.
+ ui();R(0,0,W,H,bg.sky);
+ const panelH=Math.min(Math.floor(H*.34),Math.max(132,Math.floor(H*.28)));
+ const textH=42,pad=6,btnH=panelH-textH-pad*2,TB=H-panelH;
  for(let y=0;y<TB;y+=8)R(0,y,W,4,bg.stripe);
  hpInfo(b,8,10,Math.min(170,W-16),b.opp.name,b.pw,sub,fresh&&b.flash==='o');
- const oy=Math.max(60,TB-330);
- R(W-150,oy+80,142,26,bg.plat);R(W-142,oy+84,126,18,bg.plat2);
- drawGuy(W-127+shO+(1-sl)*200,oy,2,b.opp.look,0,6);
- R(6,TB-34,160,28,bg.plat);R(14,TB-30,144,20,bg.plat2);
- drawGuy(14+shP-(1-sl)*200,TB-126,0,PLAYER_LOOK,0,7);
- const piw=Math.min(170,W-150);hpInfo(b,W-piw-6,TB-90,piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
- const my=(oy+106+TB-126)/2;drawReveal(b,134,TB-206,W-219,oy+4);
- txt(hist,W-6,oy+112,bg.ink,7,'right');
- box(0,TB,W,64);txtW(b.text,12,TB+10,'#222',10,'left',W-24,13);
- if(b.phase!=='menu'&&b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-20,TB+50,6,4,'#d03030');
- const bw=(W-24)/3,by=TB+70;R(0,TB+64,W,H-TB-64,'#283050');
- MOVES.forEach((m,i)=>{const x=6+i*(bw+6),on=b.phase==='menu';
-  R(x,by,bw,btnH-6,on?(i===b.sel?'#ffe080':'#f8f8f0'):'#8890a8');R(x,by+btnH-10,bw,4,'rgba(0,0,0,.2)');
-  drawHand(m,x+bw/2-28,by+8,3.5,false);txt(m[0].toUpperCase()+m.slice(1),x+bw/2,by+btnH-26,'#222',11,'center');
-  if(on)hit(x,by,bw,btnH-6,i);});
+ const arena=Math.max(80,TB-8),oy=Math.max(52,Math.min(TB-200,arena-220));
+ const gScale=arena<280?5:6;
+ R(W-150,oy+70,142,24,bg.plat);R(W-142,oy+74,126,16,bg.plat2);
+ drawGuy(W-127+shO+(1-sl)*200,oy,2,b.opp.look,0,gScale);
+ const py=Math.max(oy+90,TB-120);
+ R(6,py+90,160,26,bg.plat);R(14,py+94,144,18,bg.plat2);
+ drawGuy(14+shP-(1-sl)*200,py,0,PLAYER_LOOK,0,gScale+(gScale>5?1:0));
+ const piw=Math.min(170,W-150);hpInfo(b,W-piw-6,Math.max(56,py+20),piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
+ drawReveal(b,Math.min(134,W/2-90),Math.max(70,py-20),Math.max(W-219,W/2+10),oy+4);
+ txt(hist,W-6,Math.min(oy+100,TB-8),bg.ink,7,'right');
+ // Bottom panel: prompt strip + 3 large tappable move buttons (always inside visible canvas)
+ R(0,TB,W,panelH,'#1a2038');box(0,TB,W,textH);txtW(b.text,12,TB+8,'#222',10,'left',W-24,12);
+ if(b.phase!=='menu'&&b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-20,TB+textH-14,6,4,'#d03030');
+ const bw=(W-pad*2-12)/3,by=TB+textH+pad;
+ MOVES.forEach((m,i)=>{const x=pad+i*(bw+6),on=b.phase==='menu';
+  R(x,by,bw,btnH,on?(i===b.sel?'#ffe080':'#f8f8f0'):'#6a7088');R(x,by+btnH-5,bw,5,'rgba(0,0,0,.25)');
+  const hs=btnH>=78?3.2:btnH>=64?2.6:2.1;
+  drawHand(m,x+bw/2-12*hs,by+Math.max(4,btnH*0.06),hs,false);
+  txt(m[0].toUpperCase()+m.slice(1),x+bw/2,by+btnH-Math.max(16,btnH*0.22),'#222',btnH>=70?12:10,'center');
+  if(on)hit(x,by,bw,btnH,i);});
 }
+
 function drawEnd(champ){ui();const P=VIEW.portrait;
  R(0,0,W,H,champ?'#302000':'#200810');
  const cont=(IS_TOUCH?'Tap':'Press SPACE')+' to continue';
