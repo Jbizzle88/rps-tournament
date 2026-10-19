@@ -58,69 +58,97 @@ function drawBracket(){ui();const P=VIEW.portrait,fs=P?7:8;
 function hpInfo(b,x,y,iw,name,lost,sub,flash){box(x,y,iw,40);txt(name,x+10,y+7,'#222',10);txt(sub,x+iw-10,y+8,'#666',8,'right');txt('HP',x+12,y+24,'#d08020',8);
  R(x+32,y+24,iw-42,8,'#444');const nd=S.br.need,pw=(iw-46)/nd;
  for(let i=0;i<nd;i++){const red=i>=nd-lost,fl=flash&&i===nd-lost&&Math.floor(b.t*16)%2;R(x+34+i*pw,y+26,pw-2,4,fl?'#fff':red?'#e03030':'#30c050');}}
-// Reveal: each fighter's hand in a tinted bubble beside that fighter, pointing at the other
-function handBubble(b,x,y,who,col,move,flip,state){const cap=move?move.toUpperCase():'...';
+// ---- battle layout record (device px) so QA can assert no overlaps / centering ----
+let BL={};function rec(k,x,y,w,h){BL[k]=[FR.ox+x*FR.s,FR.oy+y*FR.s,w*FR.s,h*FR.s];}
+// tight pixel bounds of each hand icon on its 16-unit grid: [x,y,w,h]
+const HAND_BB={rock:[2,5,11,8],paper:[0,1,13,13],scissors:[3,1,9,13]};
+function drawHandC(m,cx,cy,s,flip,key){const b=HAND_BB[m],bx=flip?16-b[0]-b[2]:b[0];
+ const x=Math.round(cx-(bx+b[2]/2)*s),y=Math.round(cy-(b[1]+b[3]/2)*s);drawHand(m,x,y,s,flip);if(key)rec(key,x+bx*s,y+b[1]*s,b[2]*s,b[3]*s);}
+// "Moves: R/S P/P ..." history, trimmed from the left so it never exceeds maxW
+function drawHist(b,x,y,maxW,al,ink){if(!b.ph.length)return;const all=b.ph.map((m,i)=>m[0].toUpperCase()+'/'+b.oh[i][0].toUpperCase());
+ ctx.font='bold 7px monospace';let n=all.length,t;
+ for(;;){t='Moves: '+(n<all.length?'..':'')+all.slice(all.length-n).join(' ');if(n<=1||ctx.measureText(t).width<=maxW)break;n--;}
+ const w=ctx.measureText(t).width;txt(t,x,y,ink,7,al);rec('hist',al==='right'?x-w:x,y,w,8);}
+const revealState=b=>{const res=b.phase==='result'?outcome(b.pm,b.om):null;return v=>res===null?'wait':res===0?'tie':(v===res?'win':'lose');};
+// Landscape reveal bubble (unchanged look)
+function handBubble(b,x,y,who,col,move,flip,state,key){const cap=move?move.toUpperCase():'...';
  const shake=state==='wait'?Math.abs(Math.sin(b.t*9))*10:0,dx=state==='lose'&&b.t<.7?Math.sin(b.t*50)*3:0;
  if(state==='win'){const g=Math.floor(b.t*6)%2?'#ffe040':'#fff6a0';R(x-4,y-4,92,104,g);}
- R(x,y,84,96,col);R(x+2,y+14,80,80,state==='lose'?'#cfcfcf':'#fff');
+ R(x,y,84,96,col);R(x+2,y+14,80,80,state==='lose'?'#cfcfcf':'#fff');rec(key,x-4,y-4,92,104);
  txt(who+': '+cap,x+42,y+3,'#fff',8,'center');
- // tail toward own fighter
  if(flip){R(x+84,y+40,4,10,col);R(x+88,y+43,3,4,col);}else{R(x-4,y+40,4,10,col);R(x-7,y+43,3,4,col);}
  if(state==='lose')ctx.globalAlpha=.45;
- drawHand(move||'rock',x+10+dx,y+22-shake,4,flip);ctx.globalAlpha=1;
+ drawHandC(move||'rock',x+42+dx,y+54-shake,4,flip);ctx.globalAlpha=1;
  if(state&&state!=='wait'){const t=state==='win'?'WIN!':state==='lose'?'LOSE':'TIE';txt(t,x+80,y+16,state==='win'?'#1a9a2a':state==='lose'?'#c22':'#888',10,'right');}}
-function drawReveal(b,px,py,ox,oy){
- if(b.phase!=='reveal'&&b.phase!=='result')return;
- const res=b.phase==='result'?outcome(b.pm,b.om):null;
- const st=v=>res===null?'wait':res===0?'tie':(v===res?'win':'lose');
- handBubble(b,ox,oy,b.opp.name.toUpperCase(),'#b03040',res===null?null:b.om,true,st(-1));
- handBubble(b,px,py,'YOU','#3060c0',res===null?null:b.pm,false,st(1));}
-function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;
+// Portrait reveal card: compact (CW x CH), name + result in header, move name in footer, tail toward owner
+const CW=62,CH=76;
+function handCard(b,x,y,who,col,move,tailRight,state,key){
+ const shake=state==='wait'?Math.abs(Math.sin(b.t*9))*6:0,dx=state==='lose'&&b.t<.7?Math.sin(b.t*50)*2:0;
+ if(state==='win'){R(x-3,y-3,CW+6,CH+6,Math.floor(b.t*6)%2?'#ffe040':'#fff6a0');}
+ rec(key,x-3,y-3,CW+6,CH+6);
+ R(x,y,CW,CH,col);R(x+2,y+12,CW-4,CH-24,state==='lose'?'#cfcfcf':'#fff');
+ txt(who.slice(0,6),x+4,y+2,'#fff',8);
+ if(state&&state!=='wait'){const t=state==='win'?'WIN':state==='lose'?'LOSE':'TIE';const c=state==='win'?'#9f9':state==='lose'?'#fcc':'#eee';txt(t,x+CW-4,y+2,c,8,'right');}
+ txt(move?move.toUpperCase():'...',x+CW/2,y+CH-10,'#fff',7,'center');
+ if(tailRight){R(x+CW,y+30,3,10,col);R(x+CW+3,y+33,2,4,col);}else{R(x-3,y+30,3,10,col);R(x-5,y+33,2,4,col);}
+ if(state==='lose')ctx.globalAlpha=.45;
+ drawHandC(move||'rock',x+CW/2+dx,y+12+(CH-24)/2-shake,3,tailRight);ctx.globalAlpha=1;}
+function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;BL={};
  const shO=b.flash==='o'?Math.sin(b.t*60)*3:0,shP=b.flash==='p'?Math.sin(b.t*60)*3:0;
  b.intro=Math.min(1,(b.intro||0)+1/30);const sl=b.intro,fresh=b.phase==='result'&&b.t<.7;
- const sub='L'+S.level+' '+ROUND_NAMES[S.br.round],hist='Moves: '+b.ph.map((m,i)=>m[0].toUpperCase()+'/'+b.oh[i][0].toUpperCase()).join(' ');
+ const sub='L'+S.level+' '+ROUND_NAMES[S.br.round],rv=b.phase==='reveal'||b.phase==='result',st=revealState(b);
  if(!P){land(bg.sky);
   for(let y=0;y<200;y+=8)R(0,y,W,4,bg.stripe);
   R(280,100,170,30,bg.plat);R(290,104,150,22,bg.plat2);R(30,200,180,34,bg.plat);R(40,204,160,26,bg.plat2);
   drawGuy(330+shO+(1-sl)*200,34,2,b.opp.look,0,5);drawGuy(60+shP-(1-sl)*200,128,0,PLAYER_LOOK,0,6);
+  rec('oppSprite',330+2*5,34-2*5,12*5,18*5);rec('youSprite',60+2*6,128-2*6,12*6,18*6);
   hpInfo(b,20,16,170,b.opp.name,b.pw,sub,fresh&&b.flash==='o');hpInfo(b,290,170,170,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
-  drawReveal(b,172,118,232,26);
-  box(0,H-64,W,64);
+  rec('oppHP',20,16,170,40);rec('youHP',290,170,170,40);
+  if(rv){handBubble(b,236,16,b.opp.name.toUpperCase(),'#b03040',b.phase==='result'?b.om:null,true,st(-1),'oppCard');
+   handBubble(b,172,124,'YOU','#3060c0',b.phase==='result'?b.pm:null,false,st(1),'youCard');}
+  box(0,H-64,W,64);rec('dialog',0,H-64,W,64);
   if(b.phase==='menu'){wrap(b.text,30).forEach((l,i)=>txt(l,12,H-52+i*13,'#222',10));box(250,H-64,230,64);
-   MOVES.forEach((m,i)=>{const x=262+i*72;if(i===b.sel)R(x-4,H-56,68,48,'#ffe080');hit(x-4,H-56,68,48,i);
-    drawHand(m,x+14,H-56,2.5,false);txt((IS_TOUCH?'':(i+1)+' ')+m[0].toUpperCase()+m.slice(1),x+30,H-18,'#222',9,'center');});}
+   MOVES.forEach((m,i)=>{const x=262+i*72;if(i===b.sel&&!IS_TOUCH)R(x-4,H-56,68,48,'#ffe080');hit(x-4,H-56,68,48,i);rec('btn'+i,x-4,H-56,68,36);
+    drawHandC(m,x+30,H-38,2.5,false,'icon'+i);txt((IS_TOUCH?'':(i+1)+' ')+m[0].toUpperCase()+m.slice(1),x+30,H-18,'#222',9,'center');});}
   else{wrap(b.text,52).forEach((l,i)=>txt(l,14,H-52+i*14,'#222',11));if(b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-22,H-16,6,4,'#d03030');}
-  txt(hist,W-6,4,bg.ink,7,'right');return;}
- // ---- portrait battle: fighters above, integrated bottom panel (prompt + 3 big move buttons) ----
- // Panel is a fraction of the VISIBLE H (canvas is already sized to visualViewport), so buttons
- // can never sit under the iOS Safari toolbar the way a fixed "draw at canvas bottom of 100vh" layout did.
+  drawHist(b,W-6,4,200,'right',bg.ink);return;}
+ // ---- portrait battle (classic layout): enemy HP top-left + enemy top-right; player bottom-left + player HP right ----
+ // The canvas is sized to the visible viewport, so the bottom panel is always above the browser toolbar.
  ui();R(0,0,W,H,bg.sky);
- const panelH=Math.min(Math.floor(H*.34),Math.max(132,Math.floor(H*.28)));
- const textH=42,pad=6,btnH=panelH-textH-pad*2,TB=H-panelH;
+ const panelH=Math.min(Math.floor(H*.34),Math.max(132,Math.floor(H*.28))),pad=6;
+ ctx.font='bold 10px monospace';const lines=wrap(b.text,Math.max(4,Math.floor((W-24)/6.2))).length,fs=lines>2?9:10,lh=lines>2?11:12;
+ const textH=42,btnH=panelH-textH-pad*2,TB=H-panelH,A=TB;
  for(let y=0;y<TB;y+=8)R(0,y,W,4,bg.stripe);
- hpInfo(b,8,10,Math.min(170,W-16),b.opp.name,b.pw,sub,fresh&&b.flash==='o');
- const arena=Math.max(80,TB-8),oy=Math.max(52,Math.min(TB-200,arena-220));
- const gScale=arena<280?5:6;
- R(W-150,oy+70,142,24,bg.plat);R(W-142,oy+74,126,16,bg.plat2);
- drawGuy(W-127+shO+(1-sl)*200,oy,2,b.opp.look,0,gScale);
- const py=Math.max(oy+90,TB-120);
- R(6,py+90,160,26,bg.plat);R(14,py+94,144,18,bg.plat2);
- drawGuy(14+shP-(1-sl)*200,py,0,PLAYER_LOOK,0,gScale+(gScale>5?1:0));
- const piw=Math.min(170,W-150);hpInfo(b,W-piw-6,Math.max(56,py+20),piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
- drawReveal(b,Math.min(134,W/2-90),Math.max(70,py-20),Math.max(W-219,W/2+10),oy+4);
- txt(hist,W-6,Math.min(oy+100,TB-8),bg.ink,7,'right');
- // Bottom panel: prompt strip + 3 large tappable move buttons (always inside visible canvas)
- R(0,TB,W,panelH,'#1a2038');box(0,TB,W,textH);txtW(b.text,12,TB+8,'#222',10,'left',W-24,12);
- if(b.phase!=='menu'&&b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-20,TB+textH-14,6,4,'#d03030');
- const bw=(W-pad*2-12)/3,by=TB+textH+pad;
- MOVES.forEach((m,i)=>{const x=pad+i*(bw+6),on=b.phase==='menu';
-  R(x,by,bw,btnH,on?(i===b.sel?'#ffe080':'#f8f8f0'):'#6a7088');R(x,by+btnH-5,bw,5,'rgba(0,0,0,.25)');
-  const hs=btnH>=78?3.2:btnH>=64?2.6:2.1;
-  drawHand(m,x+bw/2-12*hs,by+Math.max(4,btnH*0.06),hs,false);
-  txt(m[0].toUpperCase()+m.slice(1),x+bw/2,by+btnH-Math.max(16,btnH*0.22),'#222',btnH>=70?12:10,'center');
+ const gs=A>=380?6:5,ps=A>=360?gs+1:gs;
+ const topClear=46*VIEW.dpr/FR.s;               // below the DOM ♪/🏆 buttons (top-right, ~42 css px)
+ // enemy HP box + enemy sprite to its right, slightly lower (feet on a platform)
+ const ehw=Math.min(170,W-16-14*gs);hpInfo(b,8,8,ehw,b.opp.name,b.pw,sub,fresh&&b.flash==='o');rec('oppHP',8,8,ehw,40);
+ const ex=W-16*gs-10,ey=Math.max(topClear+6*gs,30); // room for tall hats (wizard) under the ♪/🏆 buttons
+ R(ex-8,ey+13*gs,16*gs+16,Math.round(4*gs),bg.plat);R(ex-2,ey+13*gs+3,16*gs+4,Math.round(4*gs)-6,bg.plat2);
+ drawGuy(ex+shO+(1-sl)*200,ey,2,b.opp.look,0,gs);rec('oppSprite',ex+2*gs,ey-3*gs,12*gs,19*gs);
+ // enemy card: left of the enemy, below its HP box; history under the HP box, left of the card
+ const ocx=Math.max(8,ex+2*gs-10-CW),ocy=48+8;
+ drawHist(b,8,52,ocx-8-12,'left',bg.ink);
+ // player: platform at the bottom of the arena, HP box to the right, card between sprite and HP box (above HP)
+ const pxs=12,py=TB-8-15*ps;
+ R(4,py+13*ps,16*ps+18,Math.round(4*ps),bg.plat);R(10,py+13*ps+3,16*ps+6,Math.round(4*ps)-6,bg.plat2);
+ drawGuy(pxs+shP-(1-sl)*200,py,0,PLAYER_LOOK,0,ps);rec('youSprite',pxs+2*ps,py-3*ps,12*ps,19*ps);
+ const piw=Math.min(170,W-16*ps-40),phx=W-piw-6,phy=TB-48;hpInfo(b,phx,phy,piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');rec('youHP',phx,phy,piw,40);
+ const pcx=pxs+14*ps+8,pcy=phy-8-CH;
+ if(rv){handCard(b,ocx,ocy,b.opp.name.toUpperCase(),'#b03040',b.phase==='result'?b.om:null,true,st(-1),'oppCard');
+  handCard(b,pcx,pcy,'YOU','#3060c0',b.phase==='result'?b.pm:null,false,st(1),'youCard');}
+ // bottom panel: prompt + 3 large move buttons
+ R(0,TB,W,panelH,'#1a2038');box(0,TB,W,textH);rec('dialog',0,TB,W,textH);txtW(b.text,12,TB+(lines>2?5:8),'#222',fs,'left',W-24,lh);
+ if(b.phase!=='menu'&&b.phase!=='reveal'&&Math.floor(S.t*3)%2)R(W-16,TB+textH-12,6,4,'#d03030');
+ const bw=(W-pad*2-12)/3,by=TB+textH+pad,on=b.phase==='menu',labH=14,area=btnH-labH-10;
+ const hs=Math.max(2,Math.min(4,Math.floor(Math.min(area,bw-16)/13*2)/2));   // same icon scale for all three
+ MOVES.forEach((m,i)=>{const x=pad+i*(bw+6);
+  R(x,by,bw,btnH,on?'#283050':'#3a4058');R(x+2,by+2,bw-4,btnH-4,on?(i===b.sel&&!IS_TOUCH?'#ffe080':'#f8f8f0'):'#5a6078');
+  R(x+2,by+btnH-6,bw-4,4,'rgba(0,0,0,.18)');rec('btn'+i,x,by,bw,btnH-labH);
+  if(!on)ctx.globalAlpha=.45;drawHandC(m,x+bw/2,by+5+area/2,hs,false,'icon'+i);ctx.globalAlpha=1;
+  txt(m[0].toUpperCase()+m.slice(1),x+bw/2,by+btnH-labH-2,on?'#222':'#c0c4d8',btnH>=70?12:10,'center');
   if(on)hit(x,by,bw,btnH,i);});
 }
-
 function drawEnd(champ){ui();const P=VIEW.portrait;
  R(0,0,W,H,champ?'#302000':'#200810');
  const cont=(IS_TOUCH?'Tap':'Press SPACE')+' to continue';
