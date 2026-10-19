@@ -5,6 +5,8 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
 #ctl,#nm{display:none}
 body.touch{touch-action:none;position:fixed;width:100%}
 body.touch #ctl{display:block}
+body:not(.touch) #ctl{display:block}body:not(.touch) #dpad,body:not(.touch) #ab{display:none}
+#sm .b{cursor:pointer}
 .b{touch-action:none;display:flex;align-items:center;justify-content:center;color:#fff;font:bold 18px monospace;border-radius:50%;background:rgba(60,60,70,.75);box-shadow:0 3px rgba(0,0,0,.5)}
 .b.on{background:rgba(140,140,150,.9);transform:translateY(2px);box-shadow:0 1px rgba(0,0,0,.5)}
 #dpad{position:absolute;left:12px;bottom:16px;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:2px;opacity:.7}

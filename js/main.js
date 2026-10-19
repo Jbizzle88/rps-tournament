@@ -19,6 +19,8 @@ addEventListener('keydown',e=>{
  if(e.repeat&&!/^Arrow|^[wasdWASD]$/.test(e.key))return;
  keys[e.key]=true;
  if(S.mode!=='name'&&(e.key==='m'||e.key==='M')){S.muteT=1.5;Music.toggle();return;}
+ if(S.lbOpen){if(isAct(e.key)||e.key==='Escape'||e.key==='l'||e.key==='L')closeLB();return;} // overlay swallows all other input
+ if(S.mode!=='name'&&S.mode!=='board'&&(e.key==='l'||e.key==='L')){openLB();return;}
  onKey(e.key);});
 addEventListener('keyup',e=>keys[e.key]=false);
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
@@ -28,7 +30,6 @@ function onKey(k){
  if(S.mode==='board'){if(isAct(k)||k==='Escape'||k==='l'||k==='L')newGame(1);return;}
  if(S.mode==='name'){nameKey(k);return;}
  if(S.mode==='title'){
-  if(k==='l'||k==='L'){openBoard(null);return;}
   if(isAct(k)){S.mode='world';Music.setLevel(S.level);say(['Welcome to the Grand RPS Tournament!','16 fighters. Single elimination. Best of 3.','Find your opponent (marked with !) and talk to them.','Press B anytime to view the bracket.']);}return;}
  if(S.mode==='champ'){if(isAct(k)){const L=S.level+1;newGame(L,S.map.id);S.mode='world';Music.setLevel(L);
    say(['LEVEL '+L+': welcome to '+S.map.name+'! A fresh bracket of 16.','Word is the competition got smarter...'+(bestOf(L)===5?' Matches are now Best of 5!':''),'Find your opponent (!) and talk to them.']);}return;}
@@ -54,7 +55,13 @@ function nameKey(k){
   saveLB(insertScore(loadLB(),e));const mine={name:e.name,level:e.level,round:e.round};
   postScore(e).then(()=>{markPosted(e);openBoard(mine);},()=>{openBoard(mine);});S.mode='board';S.lb=insertScore(S.glb||loadLB(),e);S.mine=mine;S.lbState='saving...';}
 }
-function openBoard(mine){S.mode='board';S.mine=mine;S.lb=S.lb&&S.mine?S.lb:loadLB();S.lbState='loading...';const tok=S.lbTok=(S.lbTok||0)+1;
+// In-game leaderboard overlay: shown on top of whatever is happening (title, world, battle, end screens); game is paused underneath and resumes untouched on close.
+function clearHeld(){for(const k in keys)keys[k]=false;document.querySelectorAll('.b.on').forEach(el=>el.classList.remove('on'));}
+function openLB(){if(S.lbOpen||S.mode==='name'||S.mode==='board')return;clearHeld();S.lbOpen=true;Music.sfx('blip');loadBoard(null);}
+function closeLB(){if(!S.lbOpen)return;S.lbOpen=false;S.lbTok=(S.lbTok||0)+1;clearHeld();Music.sfx('blip');}
+function toggleLB(){if(S.mode==='board'){newGame(1);return;}if(S.lbOpen)closeLB();else openLB();}
+function openBoard(mine){S.mode='board';loadBoard(mine);}
+function loadBoard(mine){S.mine=mine;S.lb=S.lb&&S.mine?S.lb:loadLB();S.lbState='loading...';const tok=S.lbTok=(S.lbTok||0)+1;
  fetchGlobalLB().then(a=>{if(S.lbTok!==tok)return;S.lb=a;S.lbState='GLOBAL';if(mine&&!a.some(e=>e.name===mine.name&&e.level===mine.level&&e.round===mine.round))S.lb=insertScore(a,mine);},
   ()=>{if(S.lbTok!==tok)return;S.lb=loadLB();S.lbState='offline - local scores';});}
 function talk(n){
@@ -94,7 +101,7 @@ function finishBattle(won){const opp=S.battle.opp;S.mode='world';S.battle=null;i
  const o=playerOpponent(S.br);
  say(['You defeated '+opp.name+'!','Other matches finished. '+next.length+' fighters remain.','Next up ('+ROUND_NAMES[S.br.round]+'): '+o.name+'. Find them!'],()=>{S.showB=true;});
 }
-function update(dt){S.t+=dt;
+function update(dt){S.t+=dt;if(S.lbOpen)return; // paused under the leaderboard overlay
  if(S.mode==='world'&&!S.msg&&!S.showB){
   if(S.moving){S.moving-=dt*7;if(S.moving<=0)S.moving=0;}
   if(!S.moving){let d=-1;
@@ -109,6 +116,7 @@ function frame(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;Music.set(mu
  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#000';ctx.fillRect(0,0,VIEW.bw,VIEW.bh);HITS=[];
  if(S.mode==='title')drawTitle();else if(S.mode==='world'){drawWorld();if(S.showB)drawBracket();drawMsg();}
  else if(S.mode==='battle')drawBattle();else if(S.mode==='name')drawName();else if(S.mode==='board')drawBoard();else drawEnd(S.mode==='champ');
+ if(S.lbOpen)drawBoard(true);
  drawToast(dt);requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 resize();addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,150));if(window.visualViewport)visualViewport.addEventListener('resize',resize);

@@ -13,7 +13,7 @@ function drawTitle(){ui();const P=VIEW.portrait;
  else fl.forEach(([n,s,l],i)=>drawGuy(W/2-186+i*54,H*.53,2,l,Math.floor(S.t*3+i)%2,2));
  if(Math.floor(S.t*2)%2)txt(IS_TOUCH?'Tap to start':'Press SPACE to start',W/2,H*(P?.66:.68),'#fff',12,'center');
  txt(IS_TOUCH?'Tap 🏆 for Leaderboard':'L: Leaderboard',W/2,H*(P?.66:.68)+20,'#ffd040',10,'center');
- txtW(IS_TOUCH?'D-pad: move  A: talk  B: bracket':'Arrows/WASD: move  SPACE: talk  B: bracket  M: mute',W/2,H*.84,'#aac',9,'center',W-20);
+ txtW(IS_TOUCH?'D-pad: move  A: talk  B: bracket':'Arrows/WASD: move  SPACE: talk  B: bracket  M: mute  L: leaderboard',W/2,H*.84,'#aac',9,'center',W-20);
 }
 function drawWorld(){
  const m=S.map,t=S.moving,px=(S.px-(S.px-S.fromX)*t)*T,py=(S.py-(S.py-S.fromY)*t)*T;
@@ -37,7 +37,7 @@ function drawWorld(){
  // HUD
  ui();const two=IS_TOUCH;
  R(0,0,W,two?22:12,'rgba(0,0,0,.65)');txt('Lv '+S.level+' · '+ROUND_NAMES[S.br.round]+' — Opp: '+(opp?opp.name:'?'),4,2,'#fff',8);
- if(two)txt(m.name,4,12,m.hud,8);else txt(m.name,W-4,2,m.hud,8,'right');
+ if(two)txt(m.name,4,12,m.hud,8);else txt(m.name,W-4-86*VIEW.dpr/FR.s,2,m.hud,8,'right'); // leave room for the ♪/🏆 buttons
 }
 function drawMsg(){if(!S.msg)return;ui();const sm=uiS(),x=sm?sm:8,w=W-2*x,h=56,y=H-uiB()-h-6;
  box(x,y,w,h);txtW(S.msg.lines[S.msg.i],x+10,y+8,'#222',10,'left',w-20,13);
@@ -136,7 +136,7 @@ function drawName(){ui();const P=VIEW.portrait;R(0,0,W,H,'#101830');
    txt(c==='<'?'DEL':c==='>'?'OK':c,x+ws[i]/2,y+7,sel?'#000':'#fff',10,'center');hit(x,y,ws[i],kh,c);x+=ws[i]+gap;});});
  txtW('Type or use arrows + SPACE (or click) · Backspace deletes · Enter confirms',W/2,top+3*(kh+6)+10,'#aac',8,'center',W-16);
 }
-function drawBoard(){ui();const P=VIEW.portrait,fs=P?10:11,rh=P?24:19;R(0,0,W,H,'#0c1024');txt('TOP 10 LEADERBOARD',W/2,IS_TOUCH?30:14,'#ffd040',P?14:16,'center');
+function drawBoard(overlay){ui();const P=VIEW.portrait,fs=P?10:11,rh=P?24:19;R(0,0,W,H,'#0c1024');txt('TOP 10 LEADERBOARD',W/2,IS_TOUCH?30:14,'#ffd040',P?14:16,'center');
  const top=IS_TOUCH?60:44,c=[W*.07,W*.19,W*.48,W*.62];
  txt('RANK',c[0],top,'#9cf',9);txt('NAME',c[1],top,'#9cf',9);txt('LEVEL',c[2],top,'#9cf',9);txt('ROUND',c[3],top,'#9cf',9);
  txt(S.lbState||'',W/2,top-14,S.lbState==='GLOBAL'?'#6f6':'#aaa',8,'center');
@@ -144,5 +144,5 @@ function drawBoard(){ui();const P=VIEW.portrait,fs=P?10:11,rh=P?24:19;R(0,0,W,H,
  const m=S.mine,hi=m?lb.findIndex(e=>e.name===m.name&&e.level===m.level&&e.round===m.round):-1;
  lb.forEach((e,i)=>{const y=top+16+i*rh,col=i===hi?(Math.floor(S.t*4)%2?'#ff0':'#fa0'):'#fff';
   txt(String(i+1).padStart(2,' ')+'.',c[0],y,col,fs);txt(e.name,c[1],y,col,fs);txt(String(e.level),c[2]+8,y,col,fs);txt(ROUND_LABELS[clampRound(e.round)],c[3],y,col,fs-1);});
- txt((IS_TOUCH?'Tap':'Press SPACE')+' to return to title',W/2,H-18,'#aaa',9,'center');}
+ txt((IS_TOUCH?'Tap':'Press SPACE / ESC')+' to return to '+(overlay?(S.mode==='title'?'title':'game'):'title'),W/2,H-18,'#aaa',9,'center');}
 function drawToast(dt){if(S.muteT>0){S.muteT-=dt;ui();const y=IS_TOUCH?26:H-uiB()-80;R(W-70,y,64,14,'rgba(0,0,0,.7)');txt(Music.muted?'MUSIC OFF':'MUSIC ON',W-38,y+3,'#fff',8,'center');}}
