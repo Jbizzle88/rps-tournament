@@ -26,6 +26,8 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();if(S.lbOpen){closeLB();
    press(String(Math.min(2,Math.max(0,Math.floor(dx/(VIEW.bw/3))))+1));return;}
   if(b.phase!=='reveal')press(' ');return;}
  if(S.mode==='name'){if(h)kbPress(h[4]);return;}
+ if(S.mode==='title'){if(h&&(h[4]==='cont'||h[4]==='new')){titleAction(h[4]);return;}if(!savedRun())titleAction('new');return;}
+ if(S.mode==='board'){if(h&&h[4]==='again'){playAgain();return;}if(h&&h[4]==='title'){toTitle();return;}return;}
  if(S.mode==='world'&&!S.msg&&!S.showB)return; // overworld: use A button / keys
  press(' ');});
 const nm=document.getElementById('nm');
@@ -33,5 +35,5 @@ KB_ROWS.forEach(row=>{const rw=document.createElement('div');rw.className='kr';n
  if(c==='OK')d.style.background='#2a8a3a';if(c==='DEL')d.style.background='#8a2a2a';
  d.addEventListener('pointerdown',e=>{e.preventDefault();d.classList.add('on');press(c==='DEL'?'Backspace':c==='OK'?'Enter':c);});
  ['pointerup','pointercancel','pointerleave'].forEach(t=>d.addEventListener(t,()=>d.classList.remove('on')));rw.appendChild(d);});});
-(function poll(){document.body.classList.toggle('nw',S.mode!=='world'||!!S.lbOpen);nm.style.display=IS_TOUCH&&S.mode==='name'?'flex':'none';requestAnimationFrame(poll);})();
+(function poll(){document.body.classList.toggle('nw',S.mode!=='world'||!!S.lbOpen||!!S.showB);nm.style.display=IS_TOUCH&&S.mode==='name'?'flex':'none';requestAnimationFrame(poll);})();
 })();

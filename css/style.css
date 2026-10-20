@@ -21,3 +21,4 @@ body.nw #dpad,body.nw #ab{display:none}
 #nm .b{border-radius:6px;height:46px;flex:0 1 9.2%;font-size:17px;background:#3a4470}
 #nm .b.wide{flex-basis:15%;font-size:13px}
 @media (orientation:landscape){#nm{left:15%;right:15%}}
+@media (orientation:landscape) and (max-height:500px){#dpad{left:10px;bottom:10px;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px)}#ab{right:10px;bottom:10px;grid-template-columns:52px 52px;grid-template-rows:52px 52px;gap:6px}}

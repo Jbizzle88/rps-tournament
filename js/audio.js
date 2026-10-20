@@ -1,7 +1,7 @@
 "use strict";
 // Procedural chiptune: Web Audio, lookahead scheduler, per-stage songs, iOS unlock.
 const Music=(function(){
- let lvl=1,ac=null,master=null,bus=null,noise=null,muted=false,cur=null,song=null,step=0,nextT=0,loop=0,unlocked=false;
+ let lvl=1,ac=null,master=null,bus=null,noise=null,muted=(()=>{try{return localStorage.getItem('rpsMuted')==='1';}catch(e){return false;}})(),cur=null,song=null,step=0,nextT=0,loop=0,unlocked=false;
  const MAJ=[0,2,4,5,7,9,11],MIN=[0,2,3,5,7,8,10];
  const mtof=m=>440*Math.pow(2,(m-69)/12);
  function rng(s){return()=>{s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;};}
@@ -78,7 +78,7 @@ const Music=(function(){
   set(key){if(key===cur)return;const prev=cur;cur=key;if(!ac)return;
    const same=prev&&prev.replace('b','')===key.replace('b','');
    song=key?build(key):null;if(!same){step=0;loop=0;}nextT=ac.currentTime+.06;},
-  toggle(){muted=!muted;if(master)master.gain.setTargetAtTime(muted?0:.35,ac.currentTime,.03);return muted;},
+  toggle(){muted=!muted;try{localStorage.setItem('rpsMuted',muted?'1':'0');}catch(e){}if(master)master.gain.setTargetAtTime(muted?0:.35,ac.currentTime,.03);return muted;},
   setLevel(L){lvl=L;},
   get muted(){return muted;}
  };

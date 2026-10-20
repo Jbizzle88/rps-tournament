@@ -13,11 +13,21 @@ const SB_URL='https://mnxnlskvseiywtswjuhq.supabase.co/rest/v1/scores',SB_KEY='s
 const SB_H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
 // round: 0=Round of 16, 1=Quarterfinal, 2=Semifinal, 3=Final (eliminated there), 4/5 reserved (champion); clamp to 0-5
 const ROUND_LABELS=['Round of 16','Quarterfinal','Semifinal','Final','Champion','Champion'];
+// "Reached" column: where the run ended (short form fits the board column)
+const REACH_SHORT=['Lost in R16','Lost in QF','Lost in Semi','Lost in Final','Champion','Champion'];
+const REACH_LONG=['Lost in the Round of 16','Lost in the Quarterfinal','Lost in the Semifinal','Lost in the Final','Champion','Champion'];
 const clampRound=r=>Math.max(0,Math.min(5,r|0));
+// One row per name (that name's best). Rows are never deleted server-side; we fetch the top slice and dedupe here.
+function dedupeLB(list){const seen=new Set(),out=[];list.slice().sort(cmpScore).forEach(e=>{if(seen.has(e.name))return;seen.add(e.name);out.push(e);});return out;}
+const LB_CACHE='rpsGlobalCache';
+function cachedGlobalLB(){try{const c=JSON.parse(localStorage.getItem(LB_CACHE)||'null');return c&&Array.isArray(c.rows)?c.rows:null;}catch(e){return null;}}
 function fetchGlobalLB(){const ctl=typeof AbortController!=='undefined'?new AbortController():null;const tm=setTimeout(()=>ctl&&ctl.abort(),6000);
- return fetch(SB_URL+'?select=name,level,round,created_at&order=level.desc,round.desc,created_at.asc&limit='+LB_MAX,{headers:SB_H,signal:ctl&&ctl.signal})
+ return fetch(SB_URL+'?select=name,level,round,created_at&order=level.desc,round.desc,created_at.asc&limit=500',{headers:SB_H,signal:ctl&&ctl.signal})
   .then(r=>{clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-  .then(a=>a.map(e=>({name:cleanName(e.name),level:e.level|0,round:clampRound(e.round)})));}
+  .then(a=>{const rows=dedupeLB(a.map(e=>({name:cleanName(e.name),level:e.level|0,round:clampRound(e.round)}))).slice(0,LB_MAX);
+   try{localStorage.setItem(LB_CACHE,JSON.stringify({t:Date.now(),rows}));}catch(e){}return rows;});}
+// How a finished run places on a (deduped) board: null = not on it; else {rank, full}
+function placement(lb,sc){const d=dedupeLB(lb);const rank=d.filter(e=>cmpScore(e,sc)<=0).length;return rank<LB_MAX?{rank,full:d.length>=LB_MAX}:null;}
 function postScore(e){return fetch(SB_URL,{method:'POST',headers:Object.assign({'Content-Type':'application/json',Prefer:'return=minimal'},SB_H),
  body:JSON.stringify({name:cleanName(e.name),level:Math.max(1,Math.min(1000,e.level|0)),round:clampRound(e.round)})}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);});}
 // ---- retry local scores that never reached the server (missing flag = from an older build => unposted) ----

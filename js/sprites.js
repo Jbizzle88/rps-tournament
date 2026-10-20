@@ -32,12 +32,14 @@ function resize(){const wr=document.getElementById('wrap'),vv=window.visualViewp
  VIEW.portrait=ch>cw*1.05;ctx.imageSmoothingEnabled=false;}
 // on-screen touch controls footprint (device px)
 function ctlBottom(){return (typeof IS_TOUCH!=='undefined'&&IS_TOUCH&&VIEW.portrait)?175*VIEW.dpr:0;}
-function ctlSide(){return (typeof IS_TOUCH!=='undefined'&&IS_TOUCH&&!VIEW.portrait)?170*VIEW.dpr:0;}
+function ctlSide(){return (typeof IS_TOUCH!=='undefined'&&IS_TOUCH&&!VIEW.portrait)?150*VIEW.dpr:0;}
 // UI layer: base 270 wide (portrait) / 480x320 (landscape); W,H become the flexible logical size
 function ui(){const r=VIEW.portrait?Math.min(VIEW.bw/270,VIEW.bh/480):Math.min(VIEW.bw/480,VIEW.bh/320);const s=r>=1?Math.floor(r):r;
  ctx.setTransform(s,0,0,s,0,0);W=VIEW.bw/s;H=VIEW.bh/s;FR={s,ox:0,oy:0};}
 // fixed 480x320 centered frame (landscape battle)
-function land(bg){ui();R(0,0,W,H,bg);const ox=Math.floor((W-480)/2),oy=Math.floor((H-320)/2);ctx.translate(ox,oy);FR={s:FR.s,ox:ox*FR.s,oy:oy*FR.s};W=480;H=320;}
+// landscape battle frame: scale up (fractional ok) to use the screen, leaving room for the top-right ♪/🏆 buttons
+function land(bg){ui();const r=Math.min(VIEW.bw/480,VIEW.bh/320),fs=Math.max(FR.s,Math.min(r,(VIEW.bw-180*VIEW.dpr)/480));
+ if(fs>FR.s){ctx.setTransform(fs,0,0,fs,0,0);W=VIEW.bw/fs;H=VIEW.bh/fs;FR={s:fs,ox:0,oy:0};}R(0,0,W,H,bg);const ox=Math.floor((W-480)/2),oy=Math.floor((H-320)/2);ctx.translate(ox,oy);FR={s:FR.s,ox:ox*FR.s,oy:oy*FR.s};W=480;H=320;}
 function hit(x,y,w,h,v){HITS.push([FR.ox+x*FR.s,FR.oy+y*FR.s,w*FR.s,h*FR.s,v]);}
 function txtW(s,x,y,c,sz,al,maxW,lh){const per=sz*0.62;const lines=wrap(s,Math.max(4,Math.floor(maxW/per)));lines.forEach((l,i)=>txt(l,x,y+i*(lh||sz+3),c,sz,al));return lines.length;}
 function R(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}

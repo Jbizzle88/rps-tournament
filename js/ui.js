@@ -2,6 +2,7 @@
 // Screen rendering (adaptive portrait/landscape). Uses ui()/land() frames from sprites.js.
 const IS_TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const uiB=()=>ctlBottom()/FR.s, uiS=()=>ctlSide()/FR.s;
+let SL={};function rec2(k,x,y,w,h){SL[k]=[FR.ox+x*FR.s,FR.oy+y*FR.s,w*FR.s,h*FR.s];}
 function drawTitle(){ui();const P=VIEW.portrait;
  R(0,0,W,H,'#203060');for(let i=0;i<50;i++)R((i*97+S.t*20)%W,(i*53)%H,2,2,'#fff6');
  txt('ROCK  PAPER  SCISSORS',W/2,H*.11,'#ffd040',P?15:20,'center');txt('GRAND TOURNAMENT',W/2,H*.11+(P?22:28),'#fff',P?13:16,'center');
@@ -11,18 +12,27 @@ function drawTitle(){ui();const P=VIEW.portrait;
  const fl=NPCS.slice(0,7);
  if(P)fl.forEach(([n,s,l],i)=>{const r=i<4?0:1,c=r?i-4:i;drawGuy(W/2-(r?75:100)+c*50,H*.45+r*44,2,l,Math.floor(S.t*3+i)%2,2);});
  else fl.forEach(([n,s,l],i)=>drawGuy(W/2-186+i*54,H*.53,2,l,Math.floor(S.t*3+i)%2,2));
- if(Math.floor(S.t*2)%2)txt(IS_TOUCH?'Tap to start':'Press SPACE to start',W/2,H*(P?.66:.68),'#fff',12,'center');
- txt(IS_TOUCH?'Tap 🏆 for Leaderboard':'L: Leaderboard',W/2,H*(P?.66:.68)+20,'#ffd040',10,'center');
+ const sv=typeof savedRun==='function'?savedRun():null,ty=H*(P?.64:.66);
+ if(sv){const bw=Math.min(230,W-40),bx=W/2-bw/2;
+  R(bx,ty-6,bw,36,'#283050');R(bx+2,ty-4,bw-4,32,'#ffd040');txt(IS_TOUCH?'CONTINUE':'CONTINUE (SPACE)',W/2,ty-1,'#222',12,'center');
+  txt('Level '+sv.level+' · '+(sv.champ?'Champion!':ROUND_NAMES[sv.round]),W/2,ty+14,'#5a4010',9,'center');hit(bx,ty-6,bw,36,'cont');rec2('cont',bx,ty-6,bw,36);
+  R(bx+30,ty+38,bw-60,22,'#3a4470');txt(IS_TOUCH?'NEW GAME':'NEW GAME (N)',W/2,ty+44,'#fff',10,'center');hit(bx+30,ty+38,bw-60,22,'new');rec2('new',bx+30,ty+38,bw-60,22);
+  txt(IS_TOUCH?'Tap 🏆 for Leaderboard':'L: Leaderboard',W/2,ty+70,'#ffd040',10,'center');}
+ else{if(Math.floor(S.t*2)%2)txt(IS_TOUCH?'Tap to start':'Press SPACE to start',W/2,ty+2,'#fff',12,'center');
+  txt(IS_TOUCH?'Tap 🏆 for Leaderboard':'L: Leaderboard',W/2,ty+22,'#ffd040',10,'center');}
  txtW(IS_TOUCH?'D-pad: move  A: talk  B: bracket':'Arrows/WASD: move  SPACE: talk  B: bracket  M: mute  L: leaderboard',W/2,H*.84,'#aac',9,'center',W-20);
 }
 function drawWorld(){
  const m=S.map,t=S.moving,px=(S.px-(S.px-S.fromX)*t)*T,py=(S.py-(S.py-S.fromY)*t)*T;
- const ws=VIEW.portrait?Math.max(1,Math.floor(VIEW.bw/170)):Math.max(1,Math.floor(VIEW.bh/170));
+ const ws=VIEW.portrait?Math.max(1,Math.floor(VIEW.bw/170)):Math.max(1,Math.floor(VIEW.bh/(IS_TOUCH?200:170)));
  ctx.setTransform(ws,0,0,ws,0,0);
  const us=(r=>r>=1?Math.floor(r):r)(VIEW.portrait?Math.min(VIEW.bw/270,VIEW.bh/480):Math.min(VIEW.bw/480,VIEW.bh/320));
  const vw=VIEW.bw/ws,vh=VIEW.bh/ws,vhu=vh-ctlBottom()/ws-(S.msg?70*us/ws:0),mw=MAP_W*T,mh=MAP_H*T;
- const cam=(p,v,mx)=>mx<=v?(mx-v)/2:Math.max(0,Math.min(mx-v,p+8-v/2));
- const cx=cam(px,vw,mw),cy=mh<=vhu?(mh-vhu)/2:Math.max(0,Math.min(mh-vhu,py+8-vhu/2));
+ // clear play area (world px): below the HUD bar, above the bottom controls/dialog, between landscape side controls
+ const aT=(IS_TOUCH?22:12)*us/ws,aB=vhu,aL=ctlSide()/ws,aR=vw-ctlSide()/ws,aw=aR-aL,ah=aB-aT;
+ const cx=mw<=aw?(mw-vw)/2:Math.max(-aL,Math.min(mw-aR,px+8-(aL+aw/2)));
+ const cy=mh<=ah?-(aT+(ah-mh)/2):Math.max(-aT,Math.min(mh-aB,py+8-(aT+ah/2)));
+ WL={ws,cx,cy,area:[aL,aT,aR,aB]};
  R(0,0,vw,vh,'#101018');
  ctx.translate(-Math.round(cx),-Math.round(cy));
  const x0=Math.max(0,Math.floor(cx/T)),y0=Math.max(0,Math.floor(cy/T));
@@ -34,26 +44,39 @@ function drawWorld(){
    txt(n.name,n.x*T+8,n.y*T+16,ex?'#777':'#111',6,'center');}}));
  ents.push({y:py/T,f:()=>drawGuy(px,py,S.dir,PLAYER_LOOK,t>0&&t<.5)});
  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.f());
+ // edge arrow to an opponent outside the clear area (incl. under HUD / side controls / dialog)
+ if(opp){const ox=opp.x*T+8-Math.round(cx),oyTop=opp.y*T-14-Math.round(cy),oyBot=opp.y*T+22-Math.round(cy),oc=(oyTop+oyBot)/2;
+  WL.opp=[ox,oyTop,oyBot];const vis=ox>=aL+6&&ox<=aR-6&&oyTop>=aT&&oyBot<=aB;WL.oppVisible=vis;WL.arrow=null;
+  if(!vis&&!S.showB&&!S.msg){ctx.setTransform(ws,0,0,ws,0,0);const mx=(aL+aR)/2,my=(aT+aB)/2,dx=ox-mx,dy=oc-my,m=10;
+   const k=Math.min(Math.abs(dx)>1e-3?(aw/2-m)/Math.abs(dx):1e9,Math.abs(dy)>1e-3?(ah/2-m)/Math.abs(dy):1e9,1);
+   const ax=mx+dx*k,ay=my+dy*k,an=Math.atan2(dy,dx),pul=1+Math.sin(S.t*8)*.12;
+   ctx.save();ctx.translate(ax,ay);ctx.rotate(an);ctx.scale(pul,pul);ctx.fillStyle='#ff3030';ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
+   ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-6,-6);ctx.lineTo(-3,0);ctx.lineTo(-6,6);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+   const lx=Math.max(aL+16,Math.min(aR-16,ax-Math.cos(an)*14)),ly=Math.max(aT+4,Math.min(aB-10,ay-Math.sin(an)*14-3));
+   R(lx-14,ly-1,28,8,'rgba(0,0,0,.6)');txt(opp.name,lx,ly,'#fff',6,'center');WL.arrow=[ax,ay];}}
  // HUD
  ui();const two=IS_TOUCH;
  R(0,0,W,two?22:12,'rgba(0,0,0,.65)');txt('Lv '+S.level+' · '+ROUND_NAMES[S.br.round]+' — Opp: '+(opp?opp.name:'?'),4,2,'#fff',8);
  if(two)txt(m.name,4,12,m.hud,8);else txt(m.name,W-4-86*VIEW.dpr/FR.s,2,m.hud,8,'right'); // leave room for the ♪/🏆 buttons
 }
+let WL={};
+function drawNote(){if(!S.note||S.lbOpen)return;ui();const w=Math.min(W-20,260),x=W/2-w/2,y=IS_TOUCH?28:16;
+ ctx.globalAlpha=Math.min(1,S.note.d*2);R(x,y,w,16,'rgba(0,0,0,.72)');txtW(S.note.t,W/2,y+4,'#ffd040',8,'center',w-8);ctx.globalAlpha=1;}
 function drawMsg(){if(!S.msg)return;ui();const sm=uiS(),x=sm?sm:8,w=W-2*x,h=56,y=H-uiB()-h-6;
  box(x,y,w,h);txtW(S.msg.lines[S.msg.i],x+10,y+8,'#222',10,'left',w-20,13);
  if(Math.floor(S.t*3)%2)R(x+w-18,y+h-12,6,4,'#d03030');}
-function drawBracket(){ui();const P=VIEW.portrait,fs=P?7:8;
+function drawBracket(){ui();const P=VIEW.portrait,fs=9;
  R(0,0,W,H,'rgba(10,10,30,.94)');txt('LEVEL '+S.level+' BRACKET',W/2,IS_TOUCH?26:6,'#ffd040',P?11:12,'center');
- const top=IS_TOUCH?44:24,bot=Math.max(uiB(),14)+4,cw=(W-8)/5,rows=[16,8,4,2,1];
+ const top=IS_TOUCH?44:24,bot=18,cw=(W-8)/5,rows=[16,8,4,2,1];
  for(let r=0;r<5;r++){const list=S.br.rounds[r],n=rows[r],sp=(H-top-bot)/n,cx=4+r*cw,bw=cw-6;
-  for(let i=0;i<n;i++){const y=top+sp*i+sp/2-6,p=list?list[i]:null;
+  for(let i=0;i<n;i++){const y=top+sp*i+sp/2-7,p=list?list[i]:null;
    const cur=r===S.br.round&&p&&(p.player||p===playerOpponent(S.br));
-   R(cx,y,bw,12,p?(p.player?'#802020':cur?'#605010':'#303860'):'#222');
-   if(p){R(cx+2,y+3,6,6,p.color);txt(p.name,cx+10,y+2,'#fff',fs);
-    if(S.br.rounds[r+1]&&!S.br.rounds[r+1].includes(p))R(cx+9,y+6,ctx.measureText(p.name).width+2,1,'#f55');}
+   R(cx,y,bw,14,p?(p.player?'#802020':cur?'#605010':'#303860'):'#222');
+   if(p){R(cx+2,y+4,6,6,p.color);txt(p.name,cx+10,y+2,'#fff',fs);
+    if(S.br.rounds[r+1]&&!S.br.rounds[r+1].includes(p))R(cx+9,y+7,ctx.measureText(p.name).width+2,1,'#f55');}
    else txt('---',cx+10,y+2,'#666',fs);
-   if(r<4)R(cx+bw,y+6,6,1,'#556');}}
- txt(IS_TOUCH?'B / A to close':'B / SPACE to close',W/2,H-bot+2,'#aaa',8,'center');
+   if(r<4)R(cx+bw,y+7,6,1,'#556');}}
+ txt(IS_TOUCH?'Tap anywhere to close':'B / SPACE to close',W/2,H-bot+2,'#aaa',8,'center');
 }
 function hpInfo(b,x,y,iw,name,lost,sub,flash){box(x,y,iw,40);txt(name,x+10,y+7,'#222',10);txt(sub,x+iw-10,y+8,'#666',8,'right');txt('HP',x+12,y+24,'#d08020',8);
  R(x+32,y+24,iw-42,8,'#444');const nd=S.br.need,pw=(iw-46)/nd;
@@ -65,9 +88,9 @@ const HAND_BB={rock:[2,5,11,8],paper:[0,1,13,13],scissors:[3,1,9,13]};
 function drawHandC(m,cx,cy,s,flip,key){const b=HAND_BB[m],bx=flip?16-b[0]-b[2]:b[0];
  const x=Math.round(cx-(bx+b[2]/2)*s),y=Math.round(cy-(b[1]+b[3]/2)*s);drawHand(m,x,y,s,flip);if(key)rec(key,x+bx*s,y+b[1]*s,b[2]*s,b[3]*s);}
 // "Moves: R/S P/P ..." history, trimmed from the left so it never exceeds maxW
-function drawHist(b,x,y,maxW,al,ink){if(!b.ph.length)return;const all=b.ph.map((m,i)=>m[0].toUpperCase()+'/'+b.oh[i][0].toUpperCase());
- ctx.font='bold 7px monospace';let n=all.length,t;
- for(;;){t='Moves: '+(n<all.length?'..':'')+all.slice(all.length-n).join(' ');if(n<=1||ctx.measureText(t).width<=maxW)break;n--;}
+function drawHist(b,x,y,maxW,al,ink){if(!b.ph.length)return;const all=b.ph.map((m,i)=>m[0].toUpperCase()+'-'+b.oh[i][0].toUpperCase());
+ ctx.font='bold 7px monospace';let n=all.length,t;const pre='You vs '+b.opp.name+': ';
+ for(;;){t=pre+(n<all.length?'..':'')+all.slice(all.length-n).join(' ');if(n<=1||ctx.measureText(t).width<=maxW)break;n--;}
  const w=ctx.measureText(t).width;txt(t,x,y,ink,7,al);rec('hist',al==='right'?x-w:x,y,w,8);}
 const revealState=b=>{const res=b.phase==='result'?outcome(b.pm,b.om):null;return v=>res===null?'wait':res===0?'tie':(v===res?'win':'lose');};
 // Landscape reveal bubble (unchanged look)
@@ -102,7 +125,7 @@ function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;BL={};
   R(280,100,170,30,bg.plat);R(290,104,150,22,bg.plat2);R(30,200,180,34,bg.plat);R(40,204,160,26,bg.plat2);
   drawGuy(330+shO+(1-sl)*200,34,2,b.opp.look,0,5);drawGuy(60+shP-(1-sl)*200,128,0,PLAYER_LOOK,0,6);
   rec('oppSprite',330+2*5,34-2*5,12*5,18*5);rec('youSprite',60+2*6,128-2*6,12*6,18*6);
-  hpInfo(b,20,16,170,b.opp.name,b.pw,sub,fresh&&b.flash==='o');hpInfo(b,290,170,170,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');
+  hpInfo(b,20,16,170,b.opp.name,b.pw,sub,fresh&&b.flash==='o');hpInfo(b,290,170,170,'You',b.ow,'Best of '+bestOf(S.level),fresh&&b.flash==='p');
   rec('oppHP',20,16,170,40);rec('youHP',290,170,170,40);
   if(rv){handBubble(b,236,16,b.opp.name.toUpperCase(),'#b03040',b.phase==='result'?b.om:null,true,st(-1),'oppCard');
    handBubble(b,172,124,'YOU','#3060c0',b.phase==='result'?b.pm:null,false,st(1),'youCard');}
@@ -133,7 +156,7 @@ function drawBattle(){const b=S.battle,bg=S.map.battle,P=VIEW.portrait;BL={};
  const pxs=12,py=TB-8-15*ps;
  R(4,py+13*ps,16*ps+18,Math.round(4*ps),bg.plat);R(10,py+13*ps+3,16*ps+6,Math.round(4*ps)-6,bg.plat2);
  drawGuy(pxs+shP-(1-sl)*200,py,0,PLAYER_LOOK,0,ps);rec('youSprite',pxs+2*ps,py-3*ps,12*ps,19*ps);
- const piw=Math.min(170,W-16*ps-40),phx=W-piw-6,phy=TB-48;hpInfo(b,phx,phy,piw,'You',b.ow,'Bo'+bestOf(S.level),fresh&&b.flash==='p');rec('youHP',phx,phy,piw,40);
+ const piw=Math.min(170,W-16*ps-40),phx=W-piw-6,phy=TB-48;hpInfo(b,phx,phy,piw,'You',b.ow,'Best of '+bestOf(S.level),fresh&&b.flash==='p');rec('youHP',phx,phy,piw,40);
  const pcx=pxs+14*ps+8,pcy=phy-8-CH;
  if(rv){handCard(b,ocx,ocy,b.opp.name.toUpperCase(),'#b03040',b.phase==='result'?b.om:null,true,st(-1),'oppCard');
   handCard(b,pcx,pcy,'YOU','#3060c0',b.phase==='result'?b.pm:null,false,st(1),'youCard');}
@@ -162,9 +185,12 @@ function drawEnd(champ){ui();const P=VIEW.portrait;
   txtW('Their style: '+STRATS[S.lostTo.strat].d,W/2,H*.5+n*14+6,'#caa',10,'center',W-24);
   txt(cont,W/2,H*.82,'#ccc',11,'center');}
 }
+// 'NEW HIGH SCORE!' only for a real top-10 placement on a full board (or #1); otherwise you're just on a short board
+function placeTitle(pl){return pl.rank===0?'NEW #1 HIGH SCORE!':pl.full?'NEW HIGH SCORE!':'ON THE BOARD!';}
 function drawName(){ui();const P=VIEW.portrait;R(0,0,W,H,'#101830');
- txt('NEW HIGH SCORE!',W/2,H*.07,'#ffd040',P?17:20,'center');
- txt('Level '+S.score.level+' - '+ROUND_LABELS[clampRound(S.score.round)],W/2,H*.07+26,'#fff',11,'center');
+ const pl=S.place||{rank:0,full:true};
+ txt(placeTitle(pl),W/2,H*.07,'#ffd040',P?17:20,'center');
+ txt('Level '+S.score.level+' - '+REACH_LONG[clampRound(S.score.round)]+' - rank #'+(pl.rank+1),W/2,H*.07+26,'#fff',P?9:11,'center');
  txt('ENTER YOUR NAME',W/2,H*.07+48,'#9cf',12,'center');
  const sy=H*.07+76;for(let i=0;i<5;i++){const x=W/2-103+i*42;R(x,sy+34,34,4,'#fff');const c=S.nm[i]||(i===S.nm.length&&Math.floor(S.t*3)%2?'_':'');txt(c,x+17,sy+4,'#fff',26,'center');}
  if(IS_TOUCH)return; // touch devices use the on-screen QWERTY grid
@@ -176,11 +202,15 @@ function drawName(){ui();const P=VIEW.portrait;R(0,0,W,H,'#101830');
 }
 function drawBoard(overlay){ui();const P=VIEW.portrait,fs=P?10:11,rh=P?24:19;R(0,0,W,H,'#0c1024');txt('TOP 10 LEADERBOARD',W/2,IS_TOUCH?30:14,'#ffd040',P?14:16,'center');
  const top=IS_TOUCH?60:44,c=[W*.07,W*.19,W*.48,W*.62];
- txt('RANK',c[0],top,'#9cf',9);txt('NAME',c[1],top,'#9cf',9);txt('LEVEL',c[2],top,'#9cf',9);txt('ROUND',c[3],top,'#9cf',9);
+ txt('RANK',c[0],top,'#9cf',9);txt('NAME',c[1],top,'#9cf',9);txt('LEVEL',c[2],top,'#9cf',9);txt('REACHED',c[3],top,'#9cf',9);
  txt(S.lbState||'',W/2,top-14,S.lbState==='GLOBAL'?'#6f6':'#aaa',8,'center');
  const lb=S.lb||[];if(!lb.length)txt(S.lbState==='loading...'?'Loading...':'No scores yet - go play!',W/2,top+60,'#888',11,'center');
  const m=S.mine,hi=m?lb.findIndex(e=>e.name===m.name&&e.level===m.level&&e.round===m.round):-1;
  lb.forEach((e,i)=>{const y=top+16+i*rh,col=i===hi?(Math.floor(S.t*4)%2?'#ff0':'#fa0'):'#fff';
-  txt(String(i+1).padStart(2,' ')+'.',c[0],y,col,fs);txt(e.name,c[1],y,col,fs);txt(String(e.level),c[2]+8,y,col,fs);txt(ROUND_LABELS[clampRound(e.round)],c[3],y,col,fs-1);});
- txt((IS_TOUCH?'Tap':'Press SPACE / ESC')+' to return to '+(overlay?(S.mode==='title'?'title':'game'):'title'),W/2,H-18,'#aaa',9,'center');}
+  txt(String(i+1).padStart(2,' ')+'.',c[0],y,col,fs);txt(e.name,c[1],y,col,fs);txt(String(e.level),c[2]+8,y,col,fs);txt(REACH_SHORT[clampRound(e.round)],c[3],y,col,fs-1);});
+ if(overlay){txt((IS_TOUCH?'Tap':'Press SPACE / ESC')+' to return to '+(S.mode==='title'?'title':'game'),W/2,H-18,'#aaa',9,'center');return;}
+ // end of run: Play Again (primary) + Title
+ const bw=Math.min(130,(W-36)/2),by=Math.min(H-44,top+16+10*rh+8),gap=12,x1=W/2-bw-gap/2,x2=W/2+gap/2;
+ R(x1,by,bw,32,'#1a6a2a');R(x1+2,by+2,bw-4,28,'#2a9a3a');txt('PLAY AGAIN',x1+bw/2,by+6,'#fff',11,'center');txt(IS_TOUCH?'':'SPACE',x1+bw/2,by+19,'#cfe',7,'center');hit(x1,by,bw,32,'again');rec2('again',x1,by,bw,32);
+ R(x2,by,bw,32,'#283050');R(x2+2,by+2,bw-4,28,'#3a4470');txt('TITLE',x2+bw/2,by+6,'#fff',11,'center');txt(IS_TOUCH?'':'ESC',x2+bw/2,by+19,'#ccd',7,'center');hit(x2,by,bw,32,'title');rec2('title',x2,by,bw,32);}
 function drawToast(dt){if(S.muteT>0){S.muteT-=dt;ui();const y=IS_TOUCH?26:H-uiB()-80;R(W-70,y,64,14,'rgba(0,0,0,.7)');txt(Music.muted?'MUSIC OFF':'MUSIC ON',W-38,y+3,'#fff',8,'center');}}
